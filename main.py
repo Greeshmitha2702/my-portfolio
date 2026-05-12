@@ -1,25 +1,34 @@
-from fastapi import FastAPI, HTTPException
+from pathlib import Path
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from pymongo import MongoClient
 import os
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 
 # ------------------ App Setup ------------------
-app = FastAPI(title="Portfolio API")
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI(title="Portfolio API", version="1.0.0")
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "*").split(",")
+    if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # for development
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ------------------ MongoDB ------------------
-MONGO_URI = "mongodb://localhost:27017"
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 
 client = MongoClient(MONGO_URI)
 db = client["portfolio"]
@@ -52,7 +61,7 @@ def get_projects():
 
 @app.post("/api/projects", status_code=201)
 def add_project(project: Project):
-    projects_col.insert_one(project.dict())
+    projects_col.insert_one(project.model_dump())
     return {"message": "Project added"}
 
 # ------------------ Clients ------------------
@@ -62,13 +71,13 @@ def get_clients():
 
 @app.post("/api/clients", status_code=201)
 def add_client(client: Client):
-    clients_col.insert_one(client.dict())
+    clients_col.insert_one(client.model_dump())
     return {"message": "Client added"}
 
 # ------------------ Contact ------------------
 @app.post("/api/contact", status_code=201)
 def save_contact(contact: Contact):
-    contacts_col.insert_one(contact.dict())
+    contacts_col.insert_one(contact.model_dump())
     return {"message": "Contact saved"}
 
 @app.get("/api/contacts")
@@ -78,7 +87,7 @@ def get_contacts():
 # ------------------ Newsletter ------------------
 @app.post("/api/newsletter", status_code=201)
 def subscribe(newsletter: Newsletter):
-    newsletter_col.insert_one(newsletter.dict())
+    newsletter_col.insert_one(newsletter.model_dump())
     return {"message": "Subscribed"}
 
 @app.get("/api/newsletter")
@@ -87,6 +96,11 @@ def get_subscribers():
 
 @app.get("/", response_class=HTMLResponse)
 def serve_frontend():
-    with open("index.html", "r", encoding="utf-8") as f:
+    with open(BASE_DIR / "index.html", "r", encoding="utf-8") as f:
         return f.read()
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 

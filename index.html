@@ -177,7 +177,9 @@
   </div>
 
   <script>
-    const API = "http://127.0.0.1:8000"; // update with actual backend URL
+    const API = window.location.origin && window.location.origin !== "null"
+      ? window.location.origin
+      : "http://127.0.0.1:8000";
 
     function toggleView() {
       const user = document.getElementById("user");
